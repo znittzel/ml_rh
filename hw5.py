@@ -87,8 +87,6 @@ def k_means(X, K):
         
     # FOR B) store clusters at convergence
     clusters.append(z)
-
-    print(iterations)
         
     # At this point, the mu's are "optimal" (could be local optimum)
     return mu, z, clusters
@@ -129,10 +127,7 @@ class Kernal_k_means:
 
     def __init__(self, data, K, sigma):
         # Will store certain computations
-        self.comp = {
-            "snd": {},
-            "thd": []
-            }
+        self.comp = {}
         
         self.X = data
         self.K = K
@@ -143,12 +138,10 @@ class Kernal_k_means:
 
         self.z = self.initZ()
         self.fig = plt.figure(figsize=(10, 10))
+        self.temp =0
 
     def hash(self,x):
-        hsh = ""
-        for v in x:
-            hsh += str(v)
-        return hsh
+        return hash(str(x[0])+str(x[1]))
 
     # Create's K number of dictionaries to map the points
     def initZ(self):
@@ -166,50 +159,69 @@ class Kernal_k_means:
     
     # RBF Kernal
     def rbf(self, x1, x2):
-        delta = np.linalg.norm(x1-x2)
-        squaredEuclidean = np.square(delta)
-        result = np.exp(-(squaredEuclidean)/(2*self.sigma**2))
+        delta = abs(np.subtract(x1,x2))
+        se = np.square(delta).sum(axis=0)
+        result = np.exp(-(se)/(2*self.sigma**2))
         return result
 
-    # There is a part that both 2nd and 3rd term uses: sum_i=1^N k(x, X[i])
-    # Since both uses it, we explicitly define it here.
-    # Returns a vector for the point x like [K(x, X_1), K(x, X_2), ..., K(x, X_n)]
-    def part_snd(self, x):
-        # Compute if not already computed
-        if self.hash(x) not in self.comp["snd"]:
+    # # There is a part that both 2nd and 3rd term uses: sum_i=1^N k(x, X[i])
+    # # Since both uses it, we explicitly define it here.
+    # # Returns a vector for the point x like [K(x, X_1), K(x, X_2), ..., K(x, X_n)]
+    # def part_snd(self, x):
+
+    #     # Compute if not already computed
+    #     if self.hash(x) in self.comp["snd"]:
+    #         return self.comp["snd"][self.hash(x)]
+
+    #     r = []
+    #     for m in range(0, self.length):
+    #         r.append(self.rbf(x, self.X[m]))
+        
+    #     self.comp["snd"][self.hash(x)] = np.array(r)
+
+    #     return self.comp["snd"][self.hash(x)]
+
+    def prepare_kernal(self):
+
+        for xi in self.X:
             r = []
-            for m in range(0, self.length):
-                r.append(self.rbf(x, self.X[m]))
+            for xj in self.X:
+                r.append(self.rbf(xi, xj))
 
-            self.comp["snd"][self.hash(x)] = np.array(r)
+            self.comp[self.hash(xi)] = np.array(r)
 
-        return self.comp["snd"][self.hash(x)]
 
     # Second term of the distance function defined in lecture notes
     def snd_term(self, x, k):
         
-        res = np.dot(self.z[k], self.part_snd(x))
+        res = np.dot(self.z[k], self.comp[self.hash(x)])
 
         return (2*res) / self.Nk(k)
 
     # Third term of the distance function defined in lecture notes
     def td_term(self, k):
 
-        # Check if already computed
-        if not np.any(self.comp["thd"]):
-            r = []
-            for m in range(0, self.length):
-                # The vector for the point X[m] might already been computed before.
-                # Therefore we use part_snd
-                r.append(self.part_snd(X[m]))
+        # # Check if already computed
+        # if len(self.comp["thd"]) == 0:
+        #     r = []
+        #     for m in range(0, self.length):
+        #         # The vector for the point X[m] might already been computed before.
+        #         # Therefore we use part_snd
+        #         r.append(self.part_snd_two(X[m]))
 
-            # Store computation
-            self.comp["thd"] = np.array(r)
+        #     # Store computation
+        #     self.comp["thd"] = np.array(r)
 
         # Create a 2D matrix of z_mk and z_lk. The same as taking z_k * z_k^T
-        zk = self.z[k] * self.z[k].T
+        zk = np.outer(self.z[k], self.z[k])
 
-        return np.sum(zk * self.comp["thd"]) / (2*self.Nk(k))
+        # Take the dot product of first row of zk and first row of comp["thd"] to compute the sum
+        # in the third term 
+        numerator = 0
+        for i in range(0,self.length):
+            numerator += np.dot(zk[i], self.comp[self.hash(self.X[i])])
+
+        return numerator / (2*self.Nk(k))
 
     # Sum of number of points assigned to the k'th z
     def Nk(self,k):
@@ -237,6 +249,9 @@ class Kernal_k_means:
 
     def calculate(self):
 
+        # Prepare computations
+        self.prepare_kernal()
+
         # Compute until nothing changes anymore
         while (True):
 
@@ -254,11 +269,11 @@ class Kernal_k_means:
                 
                 self.z[s["index"]][i] = 1
 
-                for k in range(0, self.K):
-                    if not k == s["index"]:
-                        self.z[k][i] = 0
+                for l in range(0, self.K):
+                    if not l == s["index"]:
+                        self.z[l][i] = 0
 
-            if np.array_equal(self.z[0],z_n[0]):
+            if np.array_equal(self.z,z_n):
                 break
 
             # Increase number of iterations
@@ -269,8 +284,8 @@ class Kernal_k_means:
             #     self.plot()
 
             # Stop when 10 iterations
-            # if self.iterations == 10:
-            #     break
+            if self.iterations == 35:
+                break
 
         # Show the plots
         # plt.show()
@@ -292,9 +307,13 @@ for i in range(0, km.length):
         colors_2.append("b")
 ax2.scatter(Y[:,0],Y[:,1],color=colors_2)
 
-print(z[0].shape)
-print(np.transpose(z[0]).shape)
-
 ###############
 # Show
 plt.show()
+
+# t = 0
+# for k1 in km.comp["snd"].keys():
+#     for k2 in km.comp["snd"].keys():
+#         if k1 == k2:
+#             t += 1
+#             print(t)
