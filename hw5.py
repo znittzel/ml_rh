@@ -166,10 +166,9 @@ class Kernal_k_means:
     
     # RBF Kernal
     def rbf(self, x1, x2):
-        d = np.linalg.norm(x1-x2)
-        return d
-        result = np.exp(-1*d**2 / (2*self.sigma**2))
-
+        delta = np.linalg.norm(x1-x2)
+        squaredEuclidean = np.square(delta)
+        result = np.exp(-(squaredEuclidean)/(2*self.sigma**2))
         return result
 
     # There is a part that both 2nd and 3rd term uses: sum_i=1^N k(x, X[i])
@@ -208,7 +207,7 @@ class Kernal_k_means:
             self.comp["thd"] = np.array(r)
 
         # Create a 2D matrix of z_mk and z_lk. The same as taking z_k * z_k^T
-        zk = np.outer(self.z[k], self.z[k])
+        zk = self.z[k] * self.z[k].T
 
         return np.sum(zk * self.comp["thd"]) / (2*self.Nk(k))
 
@@ -266,35 +265,36 @@ class Kernal_k_means:
             self.iterations += 1
 
             # Plot when 5
-            if self.iterations % 5 == 0:
-                self.plot()
+            # if self.iterations % 5 == 0:
+            #     self.plot()
 
             # Stop when 10 iterations
-            if self.iterations == 10:
-                break
+            # if self.iterations == 10:
+            #     break
 
         # Show the plots
-        plt.show()
+        # plt.show()
 
         return self.z
 
-km = Kernal_k_means(X,2,0.2)
+km = Kernal_k_means(Y,2,0.2)
 z = km.calculate()
 
-# # Plot when convergence reached
-# ax2 = fig.add_subplot(222)
-# ax2.set_title("C) Final")
-# colors_2 = []
-# for i in range(0, km.length):
-#     if z[1][i] == 1:
-#         colors_2.append("r")
-#     else:
-#         colors_2.append("b")
-# ax2.scatter(Y[:,0],Y[:,1],color=colors_2)
+# Plot when convergence reached
+fig = plt.figure(figsize=(10, 10))
+ax2 = fig.add_subplot(222)
+ax2.set_title("C) Final")
+colors_2 = []
+for i in range(0, km.length):
+    if z[1][i] == 1:
+        colors_2.append("r")
+    else:
+        colors_2.append("b")
+ax2.scatter(Y[:,0],Y[:,1],color=colors_2)
 
-# print(z[0].shape)
-# print(np.transpose(z[0]).shape)
+print(z[0].shape)
+print(np.transpose(z[0]).shape)
 
-# ###############
-# # Show
-# plt.show()
+###############
+# Show
+plt.show()
