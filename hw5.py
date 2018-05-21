@@ -87,6 +87,8 @@ def k_means(X, K):
         
     # FOR B) store clusters at convergence
     clusters.append(z)
+
+    print(iterations)
         
     # At this point, the mu's are "optimal" (could be local optimum)
     return mu, z, clusters
@@ -94,7 +96,7 @@ def k_means(X, K):
 # mu, z, clusters = k_means(X,2)
 
 # # Plot when 2 iterations
-fig = plt.figure(figsize=(10,10))
+# fig = plt.figure(figsize=(10,10))
 # ax1 = fig.add_subplot(221)
 # ax1.set_title("B) After 2 iterations")
 # colors_1 = []
@@ -116,9 +118,8 @@ fig = plt.figure(figsize=(10,10))
 #         colors_2.append("b")
 # ax2.scatter(X[:,0],X[:,1],color=colors_2)
 
-################
-# Show 
-#plt.show()
+# ###############
+# plt.show()
 
 ################################################## c) #############################################
 mat = scipy.io.loadmat('hw5_p1b.mat')
@@ -137,12 +138,17 @@ class Kernal_k_means:
         self.K = K
         self.sigma = sigma
         self.length = len(data)
+        self.iterations = 0
+        self.plots = 0
 
         self.z = self.initZ()
+        self.fig = plt.figure(figsize=(10, 10))
 
     def hash(self,x):
-        h = str(x[0])+str(x[1])
-        return h
+        hsh = ""
+        for v in x:
+            hsh += str(v)
+        return hsh
 
     # Create's K number of dictionaries to map the points
     def initZ(self):
@@ -161,7 +167,8 @@ class Kernal_k_means:
     # RBF Kernal
     def rbf(self, x1, x2):
         d = np.linalg.norm(x1-x2)
-        result = np.exp(-(d**2)/(2*self.sigma**2))
+        return d
+        result = np.exp(-1*d**2 / (2*self.sigma**2))
 
         return result
 
@@ -169,7 +176,7 @@ class Kernal_k_means:
     # Since both uses it, we explicitly define it here.
     # Returns a vector for the point x like [K(x, X_1), K(x, X_2), ..., K(x, X_n)]
     def part_snd(self, x):
-        # Compyte if not already computed
+        # Compute if not already computed
         if self.hash(x) not in self.comp["snd"]:
             r = []
             for m in range(0, self.length):
@@ -182,7 +189,7 @@ class Kernal_k_means:
     # Second term of the distance function defined in lecture notes
     def snd_term(self, x, k):
         
-        res = np.sum(self.z[k] * self.part_snd(x))
+        res = np.dot(self.z[k], self.part_snd(x))
 
         return (2*res) / self.Nk(k)
 
@@ -200,8 +207,8 @@ class Kernal_k_means:
             # Store computation
             self.comp["thd"] = np.array(r)
 
-        # Create a 2D matrix of z_mk and z_lk.
-        zk = self.z[k].T * self.z[k]
+        # Create a 2D matrix of z_mk and z_lk. The same as taking z_k * z_k^T
+        zk = np.outer(self.z[k], self.z[k])
 
         return np.sum(zk * self.comp["thd"]) / (2*self.Nk(k))
 
@@ -215,6 +222,19 @@ class Kernal_k_means:
         stm = self.snd_term(x, k)
         ttm = self.td_term(k)
         return 1 - stm + ttm
+
+    def plot(self):
+        # Plot when convergence reached
+        ax = self.fig.add_subplot(222+self.plots)
+        ax.set_title("Iteration " + str(self.iterations))
+        colors = []
+        for i in range(0, self.length):
+            if self.z[0][i] == 1:
+                colors.append("r")
+            else:
+                colors.append("b")
+        ax.scatter(self.X[:, 0], self.X[:, 1], color=colors)
+        self.plots += 1
 
     def calculate(self):
 
@@ -232,8 +252,6 @@ class Kernal_k_means:
                     if d < s["dis"]:
                         s["dis"] = d
                         s["index"] = k
-
-                print(self.comp['snd'].keys())
                 
                 self.z[s["index"]][i] = 1
 
@@ -241,25 +259,42 @@ class Kernal_k_means:
                     if not k == s["index"]:
                         self.z[k][i] = 0
 
-            if np.array_equal(self.z,z_n):
+            if np.array_equal(self.z[0],z_n[0]):
                 break
+
+            # Increase number of iterations
+            self.iterations += 1
+
+            # Plot when 5
+            if self.iterations % 5 == 0:
+                self.plot()
+
+            # Stop when 10 iterations
+            if self.iterations == 10:
+                break
+
+        # Show the plots
+        plt.show()
 
         return self.z
 
-km = Kernal_k_means(Y,2,0.2)
+km = Kernal_k_means(X,2,0.2)
 z = km.calculate()
 
-# Plot when convergence reached
-ax2 = fig.add_subplot(222)
-ax2.set_title("C) Final")
-colors_2 = []
-for i in range(0, km.length):
-    if z[1][i] == 1:
-        colors_2.append("r")
-    else:
-        colors_2.append("b")
-ax2.scatter(Y[:,0],Y[:,1],color=colors_2)
+# # Plot when convergence reached
+# ax2 = fig.add_subplot(222)
+# ax2.set_title("C) Final")
+# colors_2 = []
+# for i in range(0, km.length):
+#     if z[1][i] == 1:
+#         colors_2.append("r")
+#     else:
+#         colors_2.append("b")
+# ax2.scatter(Y[:,0],Y[:,1],color=colors_2)
 
-###############
-# Show
-plt.show()
+# print(z[0].shape)
+# print(np.transpose(z[0]).shape)
+
+# ###############
+# # Show
+# plt.show()
